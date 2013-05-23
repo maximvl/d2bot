@@ -1,0 +1,12 @@
+{application, d2bot,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { d2bot_app, []}},
+  {env, []}
+ ]}.
