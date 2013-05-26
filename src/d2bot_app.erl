@@ -12,8 +12,9 @@
 start(_StartType, _StartArgs) ->
   d2bot_sup:start_link(),
 
-  application:set_env(mnesia, dir, application:get_env(mnesia_dir)),
-  {atomic, ok} = matches_db:setup([node()]),
+  {ok, MnesiaDir} = application:get_env(mnesia_dir),
+  application:set_env(mnesia, dir, MnesiaDir),
+  matches_db:setup([node()]),
 
   {ok, Host} = application:get_env(listen_ip),
   {ok, Port} = application:get_env(listen_port),
@@ -37,7 +38,7 @@ start(_StartType, _StartArgs) ->
                        {"/admin/[...]", admin_handler, []},
                        {"/ws",          ws_handler,   []},
                        {"/static/[...]",cowboy_static, 
-                        [{directory, {priv_dir, cboss, [<<"static">>]}},
+                        [{directory, {priv_dir, d2bot, [<<"static">>]}},
                          {mimetypes, {fun mimetypes:path_to_mimes/2, default}}
                         ]}
                       ]}

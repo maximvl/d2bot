@@ -18,7 +18,7 @@
                }).
 
 setup(Nodes) ->
-  ok = mnesia:create_schema(Nodes),
+  mnesia:create_schema(Nodes),                  % schema and tables can already exist
   rpc:multicall(Nodes, application, start, [mnesia]),
   mnesia:create_table(team,
                       [{attributes, record_info(fields, team)},
@@ -28,12 +28,17 @@ setup(Nodes) ->
                        {disc_copies, Nodes}]).
   
 
--spec add_team(binary()) -> ok.
+-spec add_team(binary()) -> ok | {error, iodata()}.
 add_team(Name) ->
   F = fun() ->
-          mnesia:write(#team{
-                          id = gen_id(Name),
-                          name = Name})
+          case mnesia:index_read(team, Name, #team.name) of
+            [] ->
+              mnesia:write(#team{
+                              id = gen_id(Name),
+                              name = Name});
+            _ ->
+              {error, <<"already exist">>}
+          end
       end,
   mnesia:activity(transaction, F).
 

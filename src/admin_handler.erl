@@ -19,8 +19,8 @@ handle(<<"GET">>, [], Req, State) ->
   Page = get_html(),
   {ok, Req2} = cowboy_req:reply(
                  200,
-                 [{<<"content-type">>, <<"application/json">>}],
-                 Json, Req),
+                 [{<<"content-type">>, <<"text/html">>}],
+                 Page, Req),
   {ok, Req2, State};
 
 handle(<<"GET">>, [<<"team">>, Id], Req, State) ->
@@ -33,22 +33,28 @@ handle(<<"GET">>, [<<"team">>, Id], Req, State) ->
                  Json, Req),
   {ok, Req2, State};
 
-handle(<<"GET">>, [<<"team">>, <<"range">>, From, Len], Req, State) ->
-  Teams = matches_db:get_teams(From, Len),
+handle(<<"GET">>, [<<"teams">>], Req, State) ->
+  {From, Req2} = cowboy_req:qs_val(<<"start">>, Req, <<"0">>),
+  {Count, Req3} = cowboy_req:qs_val(<<"count">>, Req2, <<"10">>),
+  Teams = case binary_to_integer(From) of
+            0 ->
+              matches_db:get_teams(binary_to_integer(Count));
+            X ->
+              matches_db:get_teams(X, binary_to_integer(Count))
+          end,
   PropsList = [matches_db:to_proplist(Team) || Team <- Teams],
   Json = mochijson2:encode({struct, [{<<"teams">>, PropsList}]}),
-  {ok, Req2} = cowboy_req:reply(
+  {ok, Req4} = cowboy_req:reply(
                  200,
                  [{<<"content-type">>, <<"application/json">>}],
-                 Json, Req),
-  {ok, Req2, State};
+                 Json, Req3),
+  {ok, Req4, State};
 
 handle(<<"POST">>, [<<"team">>, <<"add">>], Req, State) ->
-  {Body, Req2} = cowboy_req:body_qs(Req),
-  Json = mochijson2:encode({struct, [
-                                     {<<"body">>, Body},
-                                     {<<"method">>, <<"GET">>}
-                                    ]}),
+  {ok, Body, Req2} = cowboy_req:body_qs(Req),
+  Name = proplists:get_value(<<"name">>, Body),
+  Resp = matches_db:add_team(Name),
+  Json = mochijson2:encode({struct, [{<<"result">>, Resp}]}),
   {ok, Req3} = cowboy_req:reply(
                  200,
                  [{<<"content-type">>, <<"application/json">>}],
@@ -60,3 +66,6 @@ get_html() ->
   Filename = filename:join([Cwd, "priv", "admin.html"]),
   {ok, Binary} = file:read_file(Filename),
   Binary.
+
+binary_to_integer(B) ->
+  list_to_integer(binary_to_list(B)).
