@@ -8,5 +8,6 @@
                   stdlib
                  ]},
   {mod, { d2bot_app, []}},
-  {env, []}
+  {env, [{listen_ip, "141.0.175.241"},
+         {listen_port, "8080"}]}
  ]}.
