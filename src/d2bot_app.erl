@@ -12,6 +12,9 @@
 start(_StartType, _StartArgs) ->
   d2bot_sup:start_link(),
 
+  application:set_env(mnesia, dir, application:get_env(mnesia_dir)),
+  {atomic, ok} = matches_db:setup([node()]),
+
   {ok, Host} = application:get_env(listen_ip),
   {ok, Port} = application:get_env(listen_port),
 

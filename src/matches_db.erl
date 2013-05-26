@@ -1,7 +1,10 @@
 -module(matches_db).
+-export([setup/1, to_proplist/1]).
+
+%% Team api
 -export([add_team/1, set_team_name/2, remove_team/1,
          get_team/1, get_teams/1, get_teams/2,
-         teams_count/0, to_proplist/1]).
+         teams_count/0]).
 
 -record(team, {id :: integer(),
                name :: binary()
@@ -13,6 +16,17 @@
                 time :: calendar:datetime(),
                 bestof :: integer()
                }).
+
+setup(Nodes) ->
+  ok = mnesia:create_schema(Nodes),
+  rpc:multicall(Nodes, application, start, [mnesia]),
+  mnesia:create_table(team,
+                      [{attributes, record_info(fields, team)},
+                       {disc_copies, Nodes}]),
+  mnesia:create_table(mafiapp_match,
+                      [{attributes, record_info(fields, match)},
+                       {disc_copies, Nodes}]).
+  
 
 -spec add_team(binary()) -> ok.
 add_team(Name) ->
