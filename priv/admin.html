@@ -1,0 +1,20 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Admin panel</title>
+    <script src="/static/jquery.min.js"></script>
+    <script src="/static/admin.js"></script>
+    <script type="text/javascript">
+      $(document).ready(init);
+    </script>
+  </head>
+  <body>
+    <div>
+      <p>
+        Добавить команду
+        <input type='text' id="team_name" value="Имя команды"></input>
+        <button type="button" onclick="post_team();">отправить</button>
+      </p>
+    </div>
+  </body>
+</html>
