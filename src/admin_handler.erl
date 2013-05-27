@@ -24,42 +24,39 @@ handle(<<"GET">>, [], Req, State) ->
   {ok, Req2, State};
 
 handle(<<"GET">>, [<<"team">>, Id], Req, State) ->
-  Team = matches_db:get_team(Id),
+  Team = matches_db:fetch_team(Id),
   Props = matches_db:to_proplist(Team),
   Json = mochijson2:encode({struct, Props}),
-  {ok, Req2} = cowboy_req:reply(
-                 200,
-                 [{<<"content-type">>, <<"application/json">>}],
-                 Json, Req),
-  {ok, Req2, State};
+  return_json(Json, Req, State);
 
 handle(<<"GET">>, [<<"teams">>], Req, State) ->
   {From, Req2} = cowboy_req:qs_val(<<"start">>, Req, <<"0">>),
   {Count, Req3} = cowboy_req:qs_val(<<"count">>, Req2, <<"10">>),
   Teams = case binary_to_integer(From) of
             0 ->
-              matches_db:get_teams(binary_to_integer(Count));
+              matches_db:fetch_teams(binary_to_integer(Count));
             X ->
-              matches_db:get_teams(X, binary_to_integer(Count))
+              matches_db:fetch_teams(X, binary_to_integer(Count))
           end,
   PropsList = [matches_db:to_proplist(Team) || Team <- Teams],
   Json = mochijson2:encode({struct, [{<<"teams">>, PropsList}]}),
-  {ok, Req4} = cowboy_req:reply(
-                 200,
-                 [{<<"content-type">>, <<"application/json">>}],
-                 Json, Req3),
-  {ok, Req4, State};
+  return_json(Json, Req3, State);
 
 handle(<<"POST">>, [<<"team">>, <<"add">>], Req, State) ->
   {ok, Body, Req2} = cowboy_req:body_qs(Req),
   Name = proplists:get_value(<<"name">>, Body),
-  Resp = matches_db:add_team(Name),
-  Json = mochijson2:encode({struct, [{<<"result">>, Resp}]}),
-  {ok, Req3} = cowboy_req:reply(
-                 200,
-                 [{<<"content-type">>, <<"application/json">>}],
-                 Json, Req2),
-  {ok, Req3, State}.
+  error_logger:info_report([{"name", Name},
+                            {"body", Body}]),
+  Resp = matches_db:store_team(Name),
+  Json = result_to_json(Resp),
+  return_json(Json, Req2, State);
+
+handle(<<"POST">>, [<<"team">>, <<"del">>], Req, State) ->
+  {ok, Body, Req2} = cowboy_req:body_qs(Req),
+  Name = proplists:get_value(<<"name">>, Body),
+  Resp = matches_db:delete_team(Name),
+  Json = result_to_json(Resp),
+  return_json(Json, Req2, State).
 
 get_html() ->
   {ok, Cwd} = file:get_cwd(),
@@ -69,3 +66,13 @@ get_html() ->
 
 binary_to_integer(B) ->
   list_to_integer(binary_to_list(B)).
+
+result_to_json(R) ->
+  mochijson2:encode({struct, [{<<"result">>, R}]}).
+
+return_json(Json, Req, State) ->
+  {ok, Req2} = cowboy_req:reply(
+                 200,
+                 [{<<"content-type">>, <<"application/json">>}],
+                 Json, Req),
+  {ok, Req2, State}.

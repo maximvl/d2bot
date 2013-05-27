@@ -10,13 +10,23 @@
   </head>
   <body>
     <div>
+      <div id="result"></div>
       <p>
-        <input type='text' id="team_name" value="Имя команды"></input>
-        <button type="button" onclick="post_team();">добавить команду</button>
+        <input type='text' id="add_team" value="название"></input>
+        <button type="button" onclick="add_team();">добавить команду</button>
       </p>
     </div>
     <div>
-      <button type="button" onclick="get_teams();">обновить</button>
+      <p>
+        <input type='text' id="del_team" value="название"></input>
+        <button type="button" onclick="delete_team();">удалить команду</button>
+      </p>
+    </div>
+    <div>
+      <p>
+        <button type="button" onclick="get_teams();">Список команд</button>
+        <div id="teams"></div>
+      </p>
     </div>
   </body>
 </html>

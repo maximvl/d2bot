@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-  d2bot_sup:start_link(),
+  %% d2bot_sup:start_link(),
 
   {ok, MnesiaDir} = application:get_env(mnesia_dir),
   application:set_env(mnesia, dir, MnesiaDir),

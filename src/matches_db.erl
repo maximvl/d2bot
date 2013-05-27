@@ -2,8 +2,8 @@
 -export([setup/1, to_proplist/1]).
 
 %% Team api
--export([add_team/1, set_team_name/2, remove_team/1,
-         get_team/1, get_teams/1, get_teams/2,
+-export([store_team/1, store_team/2, delete_team/1,
+         fetch_team/1, fetch_teams/1, fetch_teams/2,
          teams_count/0]).
 
 -record(team, {id :: integer(),
@@ -11,82 +11,104 @@
               }).
 
 -record(match, {id :: integer(),
-                teamA :: #team{},
-                teamB :: #team{},
+                teamA :: integer(),
+                teamB :: integer(),
                 time :: calendar:datetime(),
                 bestof :: integer()
                }).
+
+-record(tournament, {id :: integer(),
+                    matches :: [integer()],
+                    name :: binary(),
+                    season :: binary()
+                   }).
 
 setup(Nodes) ->
   mnesia:create_schema(Nodes),                  % schema and tables can already exist
   rpc:multicall(Nodes, application, start, [mnesia]),
   mnesia:create_table(team,
                       [{attributes, record_info(fields, team)},
-                       {disc_copies, Nodes}]),
-  mnesia:create_table(mafiapp_match,
+                       {disc_copies, Nodes},
+                       {index, [name]}]),
+  mnesia:create_table(match,
                       [{attributes, record_info(fields, match)},
-                       {disc_copies, Nodes}]).
+                       {disc_copies, Nodes}]),
+  mnesia:create_table(tournament,
+                     [{attirbutes, record_info(fields, tournament)},
+                      {disc_copies, Nodes},
+                      {index, [name]}]).
   
 
--spec add_team(binary()) -> ok | {error, iodata()}.
-add_team(Name) ->
+-spec store_team(binary()) -> ok | iodata().
+store_team(Name) ->
   F = fun() ->
-          case mnesia:index_read(team, Name, #team.name) of
+          case mnesia:index_read(team, Name, name) of
             [] ->
               mnesia:write(#team{
                               id = gen_id(Name),
                               name = Name});
             _ ->
-              {error, <<"already exist">>}
+              [<<"error">>, <<"already exist">>]
           end
       end,
   mnesia:activity(transaction, F).
 
--spec set_team_name(integer(), binary()) -> ok | {error, binary()}.
-set_team_name(Id, NewName) ->
+-spec store_team(integer(), binary()) -> ok | iodata().
+store_team(Id, NewName) ->
   F = fun() ->
           case mnesia:read(team, Id) of
             [] ->
-              {error, <<"no such item">>};
+              [<<"error">>, <<"no such item">>];
             Team ->
               mnesia:write(Team#team{name = NewName})
           end
       end,
   mnesia:activity(transaction, F).
 
--spec remove_team(integer()) -> ok.
-remove_team(Id) ->
+-spec delete_team(integer()) -> ok.
+delete_team(Id) when is_integer(Id) ->
   F = fun() ->
           mnesia:delete({team, Id})
       end,
+  mnesia:activity(transaction, F);
+
+delete_team(Name) ->
+  F = fun() ->
+          case mnesia:index_read(team, Name, name) of
+            [T] ->
+              mnesia:delete({team, T#team.id});
+            [] ->
+              ok
+          end
+      end,
   mnesia:activity(transaction, F).
 
--spec get_team(integer() | binary()) -> [#team{}] | {aborted, term()}.
-get_team(Id) when is_integer(Id) ->
+-spec fetch_team(integer() | binary()) -> [#team{}] | {aborted, term()}.
+fetch_team(Id) when is_integer(Id) ->
   F = fun() ->
           mnesia:read(team, Id)
       end,
   mnesia:activity(transaction, F);
 
-get_team(Name) ->
+fetch_team(Name) ->
   F = fun() ->
           mnesia:index_read(team, Name, #team.name)
       end,
   mnesia:activity(transaction, F).
 
--spec get_teams(integer()) -> [#team{}].
-get_teams(N) ->
+-spec fetch_teams(integer()) -> [#team{}].
+fetch_teams(N) ->
   F = fun() ->
           Keys = get_keys(mnesia:first(team), N, team),
-          [mnesia:read(team, Key) || Key <- Keys]
+          lists:flatten([mnesia:read(team, Key) || Key <- Keys])
       end,
   mnesia:activity(transaction, F).
 
--spec get_teams(integer(), integer()) -> [#team{}].
-get_teams(StartID, N) ->
+-spec fetch_teams(integer(), integer()) -> [#team{}].
+fetch_teams(StartID, N) ->
   F = fun() ->
           Keys = get_keys(StartID, N, team),
-          [mnesia:read(team, Key) || Key <- Keys]
+          lists:flatten([mnesia:read(team, Key) || Key <- Keys])
       end,
   mnesia:activity(transaction, F).
 
@@ -123,16 +145,19 @@ get_keys1({Key, N}, Acc, Walker) ->
   get_keys1(Walker(Key, N), [Key|Acc], Walker).
 
 to_proplist(Rec) when is_record(Rec, team) ->
-  [_|Fields] = tuple_to_list(Rec),
-  lists:zipwith(fun(Key, Val) ->
-                    {atom_to_binary(Key, unicode), Val}
-                end, record_info(fields, team), Fields);
+  to_proplist1(Rec, record_info(fields, team));
 
 to_proplist(Rec) when is_record(Rec, match) ->
-  [_|Fields] = tuple_to_list(Rec),
-  lists:zipwith(fun(Key, Val) ->
-                    {atom_to_binary(Key, unicode), Val}
-                end, record_info(fields, match), Fields);
+  to_proplist1(Rec, record_info(fields, match));
+
+to_proplist(Rec) when is_record(Rec, tournament) ->
+  to_proplist1(Rec, record_info(fields, tournament));
 
 to_proplist(_) ->
-  [{<<"error">>, <<"bad record">>}].
+  [{<<"error">>, <<"unknown record">>}].
+
+to_proplist1(Rec, Fields) ->
+  [_|Vals] = tuple_to_list(Rec),
+  lists:zipwith(fun(Key, Val) ->
+                    {atom_to_binary(Key, unicode), Val}
+                end, Fields, Vals).
