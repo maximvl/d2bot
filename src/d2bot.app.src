@@ -5,7 +5,8 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+                  d2api
                  ]},
   {mod, { d2bot_app, []}},
   {env, [{listen_ip, "141.0.175.241"},

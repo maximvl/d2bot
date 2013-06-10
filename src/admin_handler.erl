@@ -42,21 +42,23 @@ handle(<<"GET">>, [<<"teams">>], Req, State) ->
   Json = mochijson2:encode({struct, [{<<"teams">>, PropsList}]}),
   return_json(Json, Req3, State);
 
+handle(<<"GET">>, [<<"leagues">>], Req, State) ->
+  Leagues = d2api:leagues(),
+  return_as_json(Leagues, Req, State);
+
 handle(<<"POST">>, [<<"team">>, <<"add">>], Req, State) ->
   {ok, Body, Req2} = cowboy_req:body_qs(Req),
   Name = proplists:get_value(<<"name">>, Body),
   error_logger:info_report([{"name", Name},
                             {"body", Body}]),
   Resp = matches_db:store_team(Name),
-  Json = result_to_json(Resp),
-  return_json(Json, Req2, State);
+  return_as_json(Resp, Req2, State);
 
 handle(<<"POST">>, [<<"team">>, <<"del">>], Req, State) ->
   {ok, Body, Req2} = cowboy_req:body_qs(Req),
   Name = proplists:get_value(<<"name">>, Body),
   Resp = matches_db:delete_team(Name),
-  Json = result_to_json(Resp),
-  return_json(Json, Req2, State).
+  return_as_json(Resp, Req2, State).
 
 get_html() ->
   {ok, Cwd} = file:get_cwd(),
@@ -67,8 +69,20 @@ get_html() ->
 binary_to_integer(B) ->
   list_to_integer(binary_to_list(B)).
 
-result_to_json(R) ->
-  mochijson2:encode({struct, [{<<"result">>, R}]}).
+return_as_json({ok, Ret}, Req, State) ->
+  return_json(Ret, Req, State);
+
+return_as_json({error, Ret}, Req, State) ->
+  return_as_json({<<"error">>, Ret}, Req, State);
+
+return_as_json(Ret, Req, State) when is_list(Ret) ->
+  return_json(mochijson2:encode(Ret), Req, State);
+
+return_as_json(Ret, Req, State) when is_tuple(Ret) ->
+  return_json(mochijson2:encode({struct, [Ret]}), Req, State);
+
+return_as_json(Ret, Req, State) ->
+  return_json(mochijson2:encode(Ret), Req, State).
 
 return_json(Json, Req, State) ->
   {ok, Req2} = cowboy_req:reply(
