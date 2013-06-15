@@ -36,6 +36,7 @@ start(_StartType, _StartArgs) ->
                        {"/ws_req",      root_handler, ["ws_req", WsAddr]},
                        {"/bets/[...]",  bets_handler, []},
                        {"/admin/[...]", admin_handler, []},
+                       {"/stats/[...]", stats_handler, []},
                        {"/ws",          ws_handler,   []},
                        {"/static/[...]",cowboy_static, 
                         [{directory, {priv_dir, d2bot, [<<"static">>]}},

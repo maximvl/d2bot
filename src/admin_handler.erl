@@ -24,41 +24,39 @@ handle(<<"GET">>, [], Req, State) ->
   {ok, Req2, State};
 
 handle(<<"GET">>, [<<"team">>, Id], Req, State) ->
-  Team = matches_db:fetch_team(Id),
-  Props = matches_db:to_proplist(Team),
-  Json = mochijson2:encode({struct, Props}),
-  return_json(Json, Req, State);
+  Team = d2api:teams(binary_to_list(Id), "1"),
+  return_as_json(Team, Req, State);
 
-handle(<<"GET">>, [<<"teams">>], Req, State) ->
-  {From, Req2} = cowboy_req:qs_val(<<"start">>, Req, <<"0">>),
-  {Count, Req3} = cowboy_req:qs_val(<<"count">>, Req2, <<"10">>),
-  Teams = case binary_to_integer(From) of
-            0 ->
-              matches_db:fetch_teams(binary_to_integer(Count));
-            X ->
-              matches_db:fetch_teams(X, binary_to_integer(Count))
-          end,
-  PropsList = [matches_db:to_proplist(Team) || Team <- Teams],
-  Json = mochijson2:encode({struct, [{<<"teams">>, PropsList}]}),
-  return_json(Json, Req3, State);
+handle(<<"GET">>, [<<"match">>, Id], Req, State) ->
+  Match = d2api:match(binary_to_list(Id)),
+  return_as_json(Match, Req, State);
 
 handle(<<"GET">>, [<<"leagues">>], Req, State) ->
   Leagues = d2api:leagues(),
   return_as_json(Leagues, Req, State);
 
-handle(<<"POST">>, [<<"team">>, <<"add">>], Req, State) ->
-  {ok, Body, Req2} = cowboy_req:body_qs(Req),
-  Name = proplists:get_value(<<"name">>, Body),
-  error_logger:info_report([{"name", Name},
-                            {"body", Body}]),
-  Resp = matches_db:store_team(Name),
-  return_as_json(Resp, Req2, State);
+handle(<<"GET">>, [<<"live">>], Req, State) ->
+  Live = d2api:live_games(),
+  return_as_json(Live, Req, State);
 
-handle(<<"POST">>, [<<"team">>, <<"del">>], Req, State) ->
-  {ok, Body, Req2} = cowboy_req:body_qs(Req),
-  Name = proplists:get_value(<<"name">>, Body),
-  Resp = matches_db:delete_team(Name),
-  return_as_json(Resp, Req2, State).
+handle(<<"GET">>, [<<"scheduled">>, From, To], Req, State) ->
+  Scheduled = d2api:scheduled_games(binary_to_list(From),
+                                    binary_to_list(To)),
+  return_as_json(Scheduled, Req, State);
+
+handle(<<"GET">>, _, Req, State) ->
+  {ok, Req2} = cowboy_req:reply(
+                 404,
+                 [{<<"content-type">>, <<"text/html">>}],
+                 <<"<h1>Not Found</h1>">>, Req),
+  {ok, Req2, State};
+
+handle(<<"POST">>, _, Req, State) ->
+  {ok, Req2} = cowboy_req:reply(
+                 404,
+                 [{<<"content-type">>, <<"text/html">>}],
+                 <<"<h1>Not Found</h1>">>, Req),
+  {ok, Req2, State}.
 
 get_html() ->
   {ok, Cwd} = file:get_cwd(),
